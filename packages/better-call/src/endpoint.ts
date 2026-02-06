@@ -416,7 +416,82 @@ export type EndpointContext<
 	) => APIError;
 };
 
-type EndpointHandler<
+export type ExtractBody<E extends EndpointBodyMethodOptions> = E extends {
+	method: infer M;
+	body?: never;
+}
+	? {
+			method: M;
+		}
+	: E extends {
+				method: ("POST" | "PUT" | "DELETE" | "PATCH" | "GET" | "HEAD")[];
+				body?: StandardSchemaV1<infer B>;
+			}
+		? E extends {
+				method: infer M;
+				body?: StandardSchemaV1<B>;
+			}
+			? { method: M; body: StandardSchemaV1<B> }
+			: never
+		: E extends {
+					method:
+						| "POST"
+						| "PUT"
+						| "DELETE"
+						| "PATCH"
+						| ("POST" | "PUT" | "DELETE" | "PATCH")[];
+					body?: StandardSchemaV1<infer B>;
+				}
+			? E extends {
+					method: infer M;
+					body?: StandardSchemaV1<B>;
+				}
+				? { method: M; body: StandardSchemaV1<B> }
+				: never
+			: E extends {
+						method: "*";
+						body?: StandardSchemaV1<infer B>;
+					}
+				? {
+						method: "*";
+						body?: StandardSchemaV1<B>;
+					}
+				: E extends {
+							method: "GET" | "HEAD" | ("GET" | "HEAD")[];
+							body?: never;
+						}
+					? E extends { method: infer M }
+						? { method: M }
+						: never
+					: never;
+export type ExtractError<E extends EndpointOptions> = E extends {
+	error?: StandardSchemaV1<infer Err>;
+}
+	? {
+			error: StandardSchemaV1<Err>;
+		}
+	: {};
+export type ExtractQuery<E extends EndpointOptions> = E extends {
+	query?: StandardSchemaV1<infer Q>;
+}
+	? {
+			query: StandardSchemaV1<Q>;
+		}
+	: {};
+
+export type ExtractOthers<E extends EndpointOptions> = Pick<
+	E,
+	Exclude<keyof E, "method" | "body" | "query" | "error">
+>;
+
+export type ExtractStandSchema<E extends EndpointOptions> = Prettify<
+	ExtractOthers<E>
+> &
+	ExtractBody<E> &
+	ExtractQuery<E> &
+	ExtractError<E>;
+
+export type EndpointHandler<
 	Path extends string,
 	Options extends EndpointOptions,
 	R,
@@ -430,12 +505,12 @@ export function createEndpoint<
 	path: Path,
 	options: Options,
 	handler: EndpointHandler<Path, Options, R>,
-): StrictEndpoint<Path, Options, R>;
+): StrictEndpoint<Path, ExtractStandSchema<Options>, R>;
 
 export function createEndpoint<Options extends EndpointOptions, R>(
 	options: Options,
 	handler: EndpointHandler<never, Options, R>,
-): StrictEndpoint<never, Options, R>;
+): StrictEndpoint<never, ExtractStandSchema<Options>, R>;
 
 export function createEndpoint<
 	Path extends string,
@@ -445,7 +520,7 @@ export function createEndpoint<
 	pathOrOptions: Path | Options,
 	handlerOrOptions: EndpointHandler<Path, Options, R> | Options,
 	handlerOrNever?: any,
-): StrictEndpoint<Path, Options, R> {
+): StrictEndpoint<Path, ExtractStandSchema<Options>, R> {
 	const path: string | undefined =
 		typeof pathOrOptions === "string" ? pathOrOptions : undefined;
 	const options: Options =
@@ -574,7 +649,11 @@ export function createEndpoint<
 	};
 	internalHandler.options = options;
 	internalHandler.path = path;
-	return internalHandler as unknown as StrictEndpoint<Path, Options, R>;
+	return internalHandler as unknown as StrictEndpoint<
+		Path,
+		ExtractStandSchema<Options>,
+		R
+	>;
 }
 
 createEndpoint.create = <E extends { use?: Middleware[] }>(opts?: E) => {
