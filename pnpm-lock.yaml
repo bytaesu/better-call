@@ -35,6 +35,9 @@ importers:
       publint:
         specifier: ^0.3.15
         version: 0.3.17
+      tinyglobby:
+        specifier: ^0.2.15
+        version: 0.2.15
       tsdown:
         specifier: ^0.20.1
         version: 0.20.3(@arethetypeswrong/core@0.18.2)(oxc-resolver@11.17.0)(publint@0.3.17)(typescript@5.9.3)
